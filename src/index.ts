@@ -8,7 +8,6 @@ async function renderBtx(this: Hexo, data: Hexo.extend.RendererData){
     });
     return result.html;
 }
+renderBtx.disableNunjucks = true
 
 hexo.extend.renderer.register('btx', 'html', renderBtx);
-
-// fn.disableNunjucks = true
