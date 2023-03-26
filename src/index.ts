@@ -1,6 +1,6 @@
 import { rawWork, globalContext } from 'btex';
-import Hexo from 'hexo';
 import { JSDOM } from 'jsdom';
+import Hexo from 'hexo';
 import path from 'path';
 
 const promises : Record<string, Promise<string>> = {};
@@ -28,9 +28,24 @@ async function _renderBtx(hexo: Hexo, data: Hexo.extend.RendererData){
             // The graft does not exist
             graft.outerHTML = `<u>${graft_name}</u>`;
         } else {
-            graft.outerHTML = await promises[graft_path];
+            const tree = hexo.theme.getView('partials/tree')
+                ?? hexo.theme.getView('index');
+            if (tree === undefined) {
+                throw new Error("Banana: No good layout found.");
+            }
+            graft.outerHTML = await tree.render({
+                spliced: false,
+                expanded: true,  // TODO these should be configurable
+                content: await promises[graft_path],
+                title: graft_name
+                    // TODO the name should be set in btex using yaml syntax
+            });
         }
     }
+
+    const links = window.document.getElementsByTagName("btex-link");
+    // see if it is external, and see if it exists
+
     // Output
     return window.document.documentElement.outerHTML;
 }
