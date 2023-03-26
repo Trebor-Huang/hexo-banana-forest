@@ -11,7 +11,8 @@
   },
   "devDependencies": {
     "@types/hexo": "^3.8.8",
-    "@types/jsdom": "^21.1.1"
+    "@types/jsdom": "^21.1.1",
+    "hexo-util": "^3.0.1"
   },
   "scripts": {
     "build": "yarn tsc --sourceMap --outDir dist"
