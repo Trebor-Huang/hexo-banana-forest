@@ -6,7 +6,7 @@
   "author": "Trebor-Huang",
   "license": "MIT",
   "dependencies": {
-    "btex": "banana-space/btex.git",
+    "btex": "banana-space/btex#dist",
     "typescript": "^5.0.2"
   },
   "devDependencies": {
