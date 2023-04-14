@@ -1,0 +1,20 @@
+{
+  "name": "hexo-banana-forest",
+  "version": "0.0.1",
+  "description": "A Hexo plugin for foresting",
+  "main": "dist/index.js",
+  "author": "Trebor-Huang",
+  "license": "MIT",
+  "dependencies": {
+    "btex": "banana-space/btex#dist",
+    "typescript": "^5.0.2"
+  },
+  "devDependencies": {
+    "@types/hexo": "^3.8.8",
+    "@types/jsdom": "^21.1.1",
+    "hexo-util": "^3.0.1"
+  },
+  "scripts": {
+    "build": "yarn tsc --sourceMap --outDir dist && cp src/preamble.btx dist/"
+  }
+}
