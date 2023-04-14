@@ -2,17 +2,34 @@ import { rawWork, globalContext } from 'btex';
 import { JSDOM } from 'jsdom';
 import Hexo from 'hexo';
 import path from 'path';
+import * as fs from 'fs';
 
-const promises : Record<string, Promise<string>> = {};
+type Tree = {
+    content : string,
+    title ?: string
+}
 
-async function _renderBtx(hexo: Hexo, data: Hexo.extend.RendererData){
+const promises : Record<string, Promise<Tree>> = {};
+
+// The preamble
+const preamble = fs.readFileSync(path.join(__dirname, 'preamble.btx'))
+    .toString('utf8');
+
+async function _renderBtx(hexo: Hexo, data: Hexo.extend.RendererData) : Promise<Tree> {
     const data_path = data.path ?? "";
     // Render btex
-    // todo: prepare my own prelude
-    const {html, errors, warnings} = await rawWork({
+    // todo: prepare my own preamble
+    const {html, errors, warnings, data: raw_metadata} = await rawWork({
         code: data.text,
+        preamble,
         globalContext
     });
+    const metadata = JSON.parse(raw_metadata);
+    const tree = hexo.theme.getView('partials/tree')
+        ?? hexo.theme.getView('index');
+    if (tree === undefined) {
+        throw new Error("Banana: No good layout found.");
+    }
     const { window } = new JSDOM(html);
     // Setup links and transclusions
     const grafts = window.document.getElementsByTagName("btex-fun");
@@ -23,21 +40,16 @@ async function _renderBtx(hexo: Hexo, data: Hexo.extend.RendererData){
             continue;  // todo
         }
         const graft_path = path.join(data_path, "..", graft_name + ".btx");
-        // console.log("Banana wants: ", graft_path);
         if (! (graft_path in promises)) {
             // The graft does not exist
-            graft.outerHTML = `<u>${graft_name}</u>`;
+            graft.outerHTML = `<u class="graft missing">${graft_name}</u>`;
         } else {
-            const tree = hexo.theme.getView('partials/tree')
-                ?? hexo.theme.getView('index');  // TODO outside this?
-            if (tree === undefined) {
-                throw new Error("Banana: No good layout found.");
-            }
+            const result = await promises[graft_path];
             graft.outerHTML = await tree.render({
                 spliced: false,
                 expanded: true,  // TODO these should be configurable
-                content: await promises[graft_path],
-                title: graft_name
+                content: result.content,
+                title: result.title ?? graft_name
                     // TODO the name should be set in btex using yaml syntax
             });
         }
@@ -49,24 +61,27 @@ async function _renderBtx(hexo: Hexo, data: Hexo.extend.RendererData){
         const ref_path = path.join(data_path, "..", ref + ".btx");
         if (ref_path in promises) {
             const real_link = document.createElement('a');
-            real_link.href = ref;  // TODO correct linking
+            real_link.href = "../" + ref;
             real_link.innerHTML = link.innerHTML;
             link.outerHTML = real_link.outerHTML;
         } else {
-            link.outerHTML = `<u>${ref}</u>`;
+            link.outerHTML = `<u class="link missing">${ref}</u>`;
         }
     }
     // Output
-    return window.document.documentElement.outerHTML;
+    return {
+        content: window.document.documentElement.outerHTML,
+        title: metadata.displayTitle
+    };
 }
 
-function renderBtx(this: Hexo, data: Hexo.extend.RendererData){
+async function renderBtx(this: Hexo, data: Hexo.extend.RendererData){
     const promise = _renderBtx(this, data);
     if (data.path) {
         promises[data.path] = promise;
         // console.log("Banana has: ", data.path);
     }
-    return promise;
+    return (await promise).content;
 }
 renderBtx.disableNunjucks = true;
 

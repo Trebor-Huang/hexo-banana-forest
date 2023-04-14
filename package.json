@@ -15,6 +15,6 @@
     "hexo-util": "^3.0.1"
   },
   "scripts": {
-    "build": "yarn tsc --sourceMap --outDir dist"
+    "build": "yarn tsc --sourceMap --outDir dist && cp src/preamble.btx dist/"
   }
 }

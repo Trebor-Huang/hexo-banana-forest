@@ -4,8 +4,24 @@ A hexo plugin to render [bTeX](https://github.com/banana-space/btex) files as [f
 
 ## TODOs
 
-* [ ] Transclusion (including image inclusion etc.)
-* [ ] Links
+* [X] Transclusion (including image inclusion etc.)
+* [X] Links
+  * [ ] Correct, structure-agnostic route for links (currently assumes perfectly flat structure)
 * [ ] Relative TOCs
-* [ ] Theming (including KaTeX setup)
-* [ ] Ti*k*Z
+  * [ ] Forbid absolute structure
+* [ ] Theming
+  * [X] Correct formula setup
+  * [ ] Some good colors
+  * [ ] Responsive
+* [X] Ti*k*Z
+* [ ] Index page etc.
+* [ ] Accessibility
+* [ ] Documentation and automation
+
+## Usage
+
+Simply add this project as a dependency for your hexo blog.
+
+### Theming
+
+(...)
