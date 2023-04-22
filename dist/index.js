@@ -43,17 +43,27 @@ const promises = {};
 // The preamble
 const preamble = fs.readFileSync(path_1.default.join(__dirname, 'preamble.btx'))
     .toString('utf8');
+function getArgs(fun) {
+    var _a, _b;
+    let args = {};
+    for (const arg of fun.children) {
+        if (arg.tagName != "btex-arg")
+            continue;
+        const [ix, val] = (_b = (_a = arg.textContent) === null || _a === void 0 ? void 0 : _a.split("=")) !== null && _b !== void 0 ? _b : ["", ""];
+        args[ix] = val;
+    }
+    return args;
+}
 function _renderBtx(hexo, data) {
     var _a, _b, _c, _d;
     return __awaiter(this, void 0, void 0, function* () {
         const data_path = (_a = data.path) !== null && _a !== void 0 ? _a : "";
         // Render btex
-        // todo: prepare my own preamble
         const { html, errors, warnings, data: raw_metadata } = yield (0, btex_1.rawWork)({
             code: data.text,
             preamble,
             globalContext: btex_1.globalContext
-        });
+        }); // todo errors and warnings
         const metadata = JSON.parse(raw_metadata);
         const tree = (_b = hexo.theme.getView('partials/tree')) !== null && _b !== void 0 ? _b : hexo.theme.getView('index');
         if (tree === undefined) {
@@ -68,29 +78,36 @@ function _renderBtx(hexo, data) {
             if (graft_name === null) {
                 continue; // todo
             }
-            const graft_path = path_1.default.join(data_path, "..", graft_name + ".btx");
-            if (!(graft_path in promises)) {
+            const graft_args = getArgs(graft);
+            if (graft_name == "image") {
+                // todo
+                continue;
+            }
+            if (!(graft_name in promises)) {
                 // The graft does not exist
                 graft.outerHTML = `<u class="graft missing">${graft_name}</u>`;
             }
             else {
-                const result = yield promises[graft_path];
+                const result = yield promises[graft_name].tree;
                 graft.outerHTML = yield tree.render({
                     spliced: false,
                     expanded: true,
                     content: result.content,
-                    title: (_c = result.title) !== null && _c !== void 0 ? _c : graft_name
-                    // TODO the name should be set in btex using yaml syntax
+                    title: // result.title ??
+                    ((_c = hexo.extend.helper.get("titlecase")) !== null && _c !== void 0 ? _c : (n => n))(graft_name)
                 });
             }
         }
         const links = window.document.getElementsByTagName("btex-link");
         for (const link of [...links]) {
             const ref = (_d = link.getAttribute("data-page")) !== null && _d !== void 0 ? _d : "";
-            const ref_path = path_1.default.join(data_path, "..", ref + ".btx");
-            if (ref_path in promises) {
+            if (ref in promises) {
                 const real_link = document.createElement('a');
-                real_link.href = "../" + ref;
+                let href = path_1.default.relative(data_path, promises[ref].path);
+                if (href.endsWith(".btx")) {
+                    href = href.slice(0, -4);
+                }
+                real_link.href = href;
                 real_link.innerHTML = link.innerHTML;
                 link.outerHTML = real_link.outerHTML;
             }
@@ -102,6 +119,8 @@ function _renderBtx(hexo, data) {
         return {
             content: window.document.documentElement.outerHTML,
             title: metadata.displayTitle
+            // TODO standalone trees can't see the displayTitle, so it's difficult
+            //   to use them. Can't figure out a uniform way
         };
     });
 }
@@ -109,8 +128,8 @@ function renderBtx(data) {
     return __awaiter(this, void 0, void 0, function* () {
         const promise = _renderBtx(this, data);
         if (data.path) {
-            promises[data.path] = promise;
-            // console.log("Banana has: ", data.path);
+            promises[path_1.default.basename(data.path, ".btx")] =
+                { path: data.path, tree: promise };
         }
         return (yield promise).content;
     });
