@@ -5,14 +5,15 @@ A hexo plugin to render [bTeX](https://github.com/banana-space/btex) files as [f
 ## TODOs
 
 * [X] Transclusion (including image inclusion etc.)
+  * [ ] Respect incremental updates
 * [X] Links
-  * [ ] Correct, structure-agnostic route for links (currently assumes perfectly flat structure)
+  * [X] Correct, structure-agnostic route for links (currently assumes perfectly flat structure)
 * [ ] Relative TOCs
   * [ ] Forbid absolute structure
 * [ ] Theming
   * [X] Correct formula setup
   * [ ] Some good colors
-  * [ ] Responsive
+  * [X] Responsive
 * [X] Ti*k*Z
 * [ ] Index page etc.
 * [ ] Accessibility

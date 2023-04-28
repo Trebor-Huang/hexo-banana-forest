@@ -14,11 +14,26 @@ const promises : Record<string, {path : string, tree : Promise<Tree>}> = {};
 // The preamble
 const preamble = fs.readFileSync(path.join(__dirname, 'preamble.btx'))
     .toString('utf8');
+// TODO user config preamble
+
+const title_case = hexo.extend.helper.get("titlecase") ?? (n => n);
+
+let tree : Hexo.View | undefined;
+function initializeTreeView() {
+    if (tree !== undefined) {
+        return;
+    }
+    tree = hexo.theme.getView('partials/tree')
+        ?? hexo.theme.getView('index');
+    if (tree === undefined) {
+        throw new Error("Banana: No good layout found.");
+}
+}
 
 function getArgs(fun : Element) {
     let args : Record<string, string> = {};
     for (const arg of fun.children) {
-        if (arg.tagName != "btex-arg") continue;
+        if (arg.tagName != "BTEX-ARG") continue;
         const [ix, val] = arg.textContent?.split("=") ?? ["", ""];
         args[ix] = val;
     }
@@ -32,13 +47,15 @@ async function _renderBtx(hexo: Hexo, data: Hexo.extend.RendererData) : Promise<
         code: data.text,
         preamble,
         globalContext
-    });  // todo errors and warnings
-    const metadata = JSON.parse(raw_metadata);
-    const tree = hexo.theme.getView('partials/tree')
-        ?? hexo.theme.getView('index');
-    if (tree === undefined) {
-        throw new Error("Banana: No good layout found.");
+    });  // todo proper errors and warnings
+    for (const error of errors) {
+        console.error("[Banana Forest]", error);
     }
+    for (const warning of warnings) {
+        console.warn("[Banana Forest]", warning);
+    }
+
+    const metadata = JSON.parse(raw_metadata);
     const { window } = new JSDOM(html);
     // Setup links and transclusions
     const grafts = window.document.getElementsByTagName("btex-fun");
@@ -58,13 +75,14 @@ async function _renderBtx(hexo: Hexo, data: Hexo.extend.RendererData) : Promise<
             graft.outerHTML = `<u class="graft missing">${graft_name}</u>`;
         } else {
             const result = await promises[graft_name].tree;
-            graft.outerHTML = await tree.render({
-                spliced: false,
-                expanded: true,  // TODO these should be configurable
+            const spliced = graft_args.spliced === "true"; // Defaults to false
+            const expanded = graft_args.expanded !== "false"; // Defaults to true
+            graft.outerHTML = await tree?.render({
+                spliced,
+                expanded,
                 content: result.content,
-                title: // result.title ??
-                    (hexo.extend.helper.get("titlecase") ?? (n => n))(graft_name)
-            });
+                title: result.title ?? title_case(graft_name)
+            }) ?? "[unreachable]";
         }
     }
 
@@ -88,18 +106,23 @@ async function _renderBtx(hexo: Hexo, data: Hexo.extend.RendererData) : Promise<
     return {
         content: window.document.documentElement.outerHTML,
         title: metadata.displayTitle
-        // TODO standalone trees can't see the displayTitle, so it's difficult
-        //   to use them. Can't figure out a uniform way
     };
 }
 
 async function renderBtx(this: Hexo, data: Hexo.extend.RendererData){
+    initializeTreeView();
     const promise = _renderBtx(this, data);
     if (data.path) {
         promises[path.basename(data.path, ".btx")] =
             { path : data.path , tree : promise };
     }
-    return (await promise).content;
+    const result = await promise;
+    return await tree?.render({
+        spliced: false,
+        expanded: true,
+        content: result.content,
+        title: result.title ?? "No title"
+    }) ?? "[unreachable]"
 }
 renderBtx.disableNunjucks = true;
 

@@ -34,6 +34,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
+var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
 const btex_1 = require("btex");
 const jsdom_1 = require("jsdom");
@@ -43,11 +44,24 @@ const promises = {};
 // The preamble
 const preamble = fs.readFileSync(path_1.default.join(__dirname, 'preamble.btx'))
     .toString('utf8');
+// TODO user config preamble
+const title_case = (_a = hexo.extend.helper.get("titlecase")) !== null && _a !== void 0 ? _a : (n => n);
+let tree;
+function initializeTreeView() {
+    var _a;
+    if (tree !== undefined) {
+        return;
+    }
+    tree = (_a = hexo.theme.getView('partials/tree')) !== null && _a !== void 0 ? _a : hexo.theme.getView('index');
+    if (tree === undefined) {
+        throw new Error("Banana: No good layout found.");
+    }
+}
 function getArgs(fun) {
     var _a, _b;
     let args = {};
     for (const arg of fun.children) {
-        if (arg.tagName != "btex-arg")
+        if (arg.tagName != "BTEX-ARG")
             continue;
         const [ix, val] = (_b = (_a = arg.textContent) === null || _a === void 0 ? void 0 : _a.split("=")) !== null && _b !== void 0 ? _b : ["", ""];
         args[ix] = val;
@@ -63,12 +77,14 @@ function _renderBtx(hexo, data) {
             code: data.text,
             preamble,
             globalContext: btex_1.globalContext
-        }); // todo errors and warnings
-        const metadata = JSON.parse(raw_metadata);
-        const tree = (_b = hexo.theme.getView('partials/tree')) !== null && _b !== void 0 ? _b : hexo.theme.getView('index');
-        if (tree === undefined) {
-            throw new Error("Banana: No good layout found.");
+        }); // todo proper errors and warnings
+        for (const error of errors) {
+            console.error("[Banana Forest]", error);
         }
+        for (const warning of warnings) {
+            console.warn("[Banana Forest]", warning);
+        }
+        const metadata = JSON.parse(raw_metadata);
         const { window } = new jsdom_1.JSDOM(html);
         // Setup links and transclusions
         const grafts = window.document.getElementsByTagName("btex-fun");
@@ -89,13 +105,14 @@ function _renderBtx(hexo, data) {
             }
             else {
                 const result = yield promises[graft_name].tree;
-                graft.outerHTML = yield tree.render({
-                    spliced: false,
-                    expanded: true,
+                const spliced = graft_args.spliced === "true"; // Defaults to false
+                const expanded = graft_args.expanded !== "false"; // Defaults to true
+                graft.outerHTML = (_c = yield (tree === null || tree === void 0 ? void 0 : tree.render({
+                    spliced,
+                    expanded,
                     content: result.content,
-                    title: // result.title ??
-                    ((_c = hexo.extend.helper.get("titlecase")) !== null && _c !== void 0 ? _c : (n => n))(graft_name)
-                });
+                    title: (_b = result.title) !== null && _b !== void 0 ? _b : title_case(graft_name)
+                }))) !== null && _c !== void 0 ? _c : "[unreachable]";
             }
         }
         const links = window.document.getElementsByTagName("btex-link");
@@ -119,19 +136,25 @@ function _renderBtx(hexo, data) {
         return {
             content: window.document.documentElement.outerHTML,
             title: metadata.displayTitle
-            // TODO standalone trees can't see the displayTitle, so it's difficult
-            //   to use them. Can't figure out a uniform way
         };
     });
 }
 function renderBtx(data) {
+    var _a, _b;
     return __awaiter(this, void 0, void 0, function* () {
+        initializeTreeView();
         const promise = _renderBtx(this, data);
         if (data.path) {
             promises[path_1.default.basename(data.path, ".btx")] =
                 { path: data.path, tree: promise };
         }
-        return (yield promise).content;
+        const result = yield promise;
+        return (_b = yield (tree === null || tree === void 0 ? void 0 : tree.render({
+            spliced: false,
+            expanded: true,
+            content: result.content,
+            title: (_a = result.title) !== null && _a !== void 0 ? _a : "No title"
+        }))) !== null && _b !== void 0 ? _b : "[unreachable]";
     });
 }
 renderBtx.disableNunjucks = true;
